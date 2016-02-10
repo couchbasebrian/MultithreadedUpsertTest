@@ -60,9 +60,9 @@ namespace MultithreadedUpsertTest
 
                 timeAndDateNow = DateTime.Now.ToString();
                 doLog("Hello there! " + timeAndDateNow);
-                documentBody = "{ \"data\" : \"" + timeAndDateNow + " " + mySerialNumber + "\" }";
+                documentBody = "{ \"data\" : \"" + timeAndDateNow + " by thread #" + mySerialNumber + "\" }";
                 CouchbaseHelper.upsert("documentKey", documentBody);
-                randomSleepTimeMS = rnd.Next(1, 1000);
+                randomSleepTimeMS = rnd.Next(1, 10);
                 Thread.Sleep(randomSleepTimeMS); // Sleep for x milliseconds
             }
         }
@@ -77,18 +77,18 @@ namespace MultithreadedUpsertTest
     class CouchbaseHelper
     {
 
+        private static string hostName;
+        private static string bucketName;
         private static bool initDone = false;
-
         private static CouchbaseBucket defaultBucket = null;
-
         private static TimeSpan defaultTimeSpan;
+        private static int exceptionCounter = 0;
 
-        public static void init()
+        public static void init(string hn, string bn)
         {
             defaultTimeSpan = new TimeSpan(0, 0, 0, 30);
 
-            // string myurl = "http://192.168.0.1:8091";
-            string myurl = "http://10.4.2.121:8091";
+            string myurl = "http://" + hn + ":8091";
 
             Console.WriteLine("About to init Cluster Helper: " + myurl);
             ClusterHelper.Initialize(new ClientConfiguration
@@ -99,8 +99,9 @@ namespace MultithreadedUpsertTest
                 }
             });
 
+            Console.WriteLine("About to get bucket: " + bn);
 
-            defaultBucket = (CouchbaseBucket) ClusterHelper.GetBucket("BUCKETNAME");
+            defaultBucket = (CouchbaseBucket) ClusterHelper.GetBucket(bn);
 
             initDone = true;
         }
@@ -120,6 +121,7 @@ namespace MultithreadedUpsertTest
             if (isSuccess == false)
             {
                 Console.WriteLine("Upsert failed!  Message: " + result.Message);
+                exceptionCounter++;
             }
         
             return isSuccess;
@@ -134,13 +136,13 @@ namespace MultithreadedUpsertTest
         static void Main(string[] args)
         {
 
-            CouchbaseHelper.init();
+            CouchbaseHelper.init("10.4.2.121", "BUCKETNAME");
 
-            const int numberOfThreads = 3;
+            const int numberOfThreads = 10;
 
             Thread[] threadArray = new Thread[numberOfThreads];
 
-            Console.WriteLine("Creating threads now...");
+            Console.WriteLine("Creating " + numberOfThreads + " threads now...");
 
             for (int i = 0; i < numberOfThreads; i++)
             {
@@ -157,6 +159,7 @@ namespace MultithreadedUpsertTest
 
             Console.WriteLine("After starting threads");
 
+            // The program will run until you Control-C
         }
     }
 }
